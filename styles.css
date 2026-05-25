@@ -1,0 +1,25 @@
+const { redis, emptyState, authUser, cors } = require("../lib/store");
+
+module.exports = async (req, res) => {
+  cors(res);
+  if (req.method === "OPTIONS") return res.status(200).end();
+  const username = authUser(req);
+  if (!username) return res.status(401).json({ error: "Não autenticado." });
+
+  try {
+    if (req.method === "GET") {
+      const data = (await redis.get("data:" + username)) || emptyState();
+      return res.status(200).json({ data });
+    }
+    if (req.method === "PUT") {
+      const data = req.body && req.body.data;
+      if (typeof data !== "object" || data === null) return res.status(400).json({ error: "Formato de dados inválido." });
+      await redis.set("data:" + username, data);
+      return res.status(200).json({ ok: true });
+    }
+    return res.status(405).json({ error: "Método não permitido." });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: "Erro no servidor." });
+  }
+};
